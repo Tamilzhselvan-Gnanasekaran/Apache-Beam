@@ -1,0 +1,65 @@
+#   Licensed to the Apache Software Foundation (ASF) under one
+#   or more contributor license agreements.  See the NOTICE file
+#   distributed with this work for additional information
+#   regarding copyright ownership.  The ASF licenses this file
+#   to you under the Apache License, Version 2.0 (the
+#   "License"); you may not use this file except in compliance
+#   with the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+# beam-playground:
+#   name: CoGroupByKey
+#   description: Task from katas to implement a CoGroupByKey transform that join words by its first
+#     alphabetical letter, and then produces the string representation of the WordsAlphabet model.
+#   multifile: false
+#   context_line: 31
+#   categories:
+#     - Combiners
+
+import apache_beam as beam
+
+from log_elements import LogElements
+
+
+class WordsAlphabet:
+
+    def __init__(self, alphabet, fruit, country):
+        self.alphabet = alphabet
+        self.fruit = fruit
+        self.country = country
+
+    def __str__(self):
+        return "WordsAlphabet(alphabet:'%s', fruit='%s', country='%s')" % (self.alphabet, self.fruit, self.country)
+
+
+def apply_transforms(fruits, countries):
+
+  def str_func(result):
+      key, values = result
+      wa = WordsAlphabet(key, values['fruits_tag'][0], values['countries_tag'][0])
+      return str(wa)
+
+
+  fru = fruits | beam.Map(lambda string: (string[0], string))
+  cou = countries | beam.Map(lambda string: (string[0], string))
+  return (({ 'fruits_tag' : fru , 'countries_tag' : cou })
+          | beam.CoGroupByKey()
+          | beam.Map(str_func))
+
+with beam.Pipeline() as p:
+
+  fruits = p | 'Fruits' >> beam.Create(['apple','apricot', 'banana','bingo', 'cherry','cucumber'])
+  countries = p | 'Countries' >> beam.Create(['australia','america', 'brazil', 'benguela', 'canada', 'china'])
+
+
+  (apply_transforms(fruits, countries)
+  | LogElements())
+
+

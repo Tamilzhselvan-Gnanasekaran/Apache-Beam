@@ -1,1 +1,107 @@
+#   Licensed to the Apache Software Foundation (ASF) under one
+#   or more contributor license agreements.  See the NOTICE file
+#   distributed with this work for additional information
+#   regarding copyright ownership.  The ASF licenses this file
+#   to you under the Apache License, Version 2.0 (the
+#   "License"); you may not use this file except in compliance
+#   with the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+# beam-playground:
+#   name: WordCount
+#   description: Task from katas to create a pipeline that counts the number of words.
+#   multifile: false
+#   context_line: 29
+#   categories:
+#     - Combiners
+
+import apache_beam as beam
+
+from log_elements import LogElements
+
+lines = [
+    "apple orange grape banana apple banana",
+    "banana orange banana papaya" ]
+
+
+lines = [
+    """         You can hard-code various execution options when you run your pipeline. 
+    However, the more common way is to define your own configuration options via command-line argument parsing. 
+    Defining your configuration options via the command-line makes the code more easily portable across different runners.
+    If you have a processing operation that consists of multiple transforms or ParDo steps, you can create it as a subclass of PTransform. 
+    Creating a PTransform subclass allows you to encapsulate complex transforms, can make your pipeline’s structure more clear and modular, and makes unit testing easier.
+
+        In this example, two transforms are encapsulated as the PTransform subclass CountWords. CountWords contains the ParDo that runs ExtractWordsFn and the SDK-provided Count transform.
+When CountWords is defined, we specify its ultimate input and output; the input is the PCollection<String> for the extraction operation, and the output is the PCollection<KV<String, Long>> produced by the count operation.""" ]
+
+
+class FreqOfWordOcc(beam.CombineFn):
+
+    def create_accumulator(self, *args, **kwargs):
+        return {}
+
+
+    def add_input(self, mutable_accumulator, element, *args, **kwargs):
+        if element in mutable_accumulator:
+            mutable_accumulator[element] += 1
+        else:
+            mutable_accumulator[element] = 1
+        return mutable_accumulator
+
+
+    def merge_accumulators(self, accumulators, *args, **kwargs):
+        merged = {}
+        for acc in accumulators:
+            for key, value in acc.items():
+                if key in merged:
+                    merged[key] += acc[key]
+                else:
+                    merged[key] = acc[key]
+        return merged
+
+
+    def extract_output(self, accumulator, *args, **kwargs):
+        return accumulator
+
+
+
+def format_result(word_count):
+      (word, count) = word_count
+      return '%s:%s' % (word, count)
+
+
+with beam.Pipeline() as p:
+
+  (p | beam.Create(lines)
+
+
+# Method 1 of performing word count example
+
+  # | beam.FlatMap(lambda line : str(line).split(' '))
+  # | beam.combiners.Count.PerElement()
+  # | beam.MapTuple(lambda k, v : k + ':' + str(v))
+
+
+# Method 2 of performing word count example
+
+  # | beam.FlatMap(lambda line : str(line).split(' '))
+  # | beam.CombineGlobally(FreqOfWordOcc())
+  # | beam.FlatMap(lambda pair : tuple(pair.items()))
+  # | beam.MapTuple(lambda k, v : k + ':' + str(v))
+
+
+# Method 3 of performing word count example
+
+  # | beam.FlatMap(lambda line : str(line).split(' '))
+  # | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
+  # | 'GroupAndSum' >> beam.CombinePerKey(sum)
+  # | 'Format' >> beam.Map(format_result)
+     | LogElements())
 
